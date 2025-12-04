@@ -67,8 +67,7 @@ export default function ImageDetailPage() {
         .select('*')
         .eq('post_id', id)
         .eq('user_id', userinfo.id)
-        .single()
-      console.log('Like Data:', !!data) 
+        .single() 
       setLiked(!!data)
 
       if (error) {

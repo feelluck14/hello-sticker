@@ -35,7 +35,6 @@ export default function ContestCreatePage() {
     const user_id = userInfo.id // contest_posts에 들어갈 int형 ID
 
     let imagePath = ''
-    console.log('Submitting contest:', { user_id })
     // 이미지가 선택된 경우에만 업로드
     if (imageFile) {
       const fileName = `${authId}-${Date.now()}_${imageFile.name}`

@@ -149,7 +149,6 @@ export default function ImageCreatePage() {
     const { data: publicUrlData } = supabase.storage
       .from(bucket+'_img')
       .getPublicUrl(filePath)
-    console.log('Public URL:', publicUrlData)
     const imageUrl = publicUrlData.publicUrl
     if(bucket==='result'){
       setResultImage(imageUrl)

@@ -8,6 +8,7 @@ import { useAuth } from '@/components/AuthContext'
 export default function AuthPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
   const { userinfo, loading,login } = useAuth()
@@ -30,6 +31,12 @@ export default function AuthPage() {
       setMessage(`❌ 로그인 실패: ${error.message}`)
     } else {
       setMessage('✅ 로그인 성공!')
+      // rememberMe가 true면 로컬 스토리지에 저장
+      if (rememberMe) {
+        localStorage.setItem('rememberMe', 'true')
+      } else {
+        localStorage.removeItem('rememberMe')
+      }
       login && await login()
     }
   }
@@ -83,7 +90,14 @@ export default function AuthPage() {
       비밀번호
       <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
     </label>
-
+    <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={rememberMe}
+          onChange={(e) => setRememberMe(e.target.checked)}
+          />
+          항시 로그인 유지
+    </label>
     {mode === 'signup' && (
       <>
         <label>
@@ -140,6 +154,7 @@ export default function AuthPage() {
         <button onClick={() => setMode('login')} style={{ color: '#4f46e5', background: 'none', border: 'none', cursor: 'pointer' }}>
           로그인
         </button>
+        
       </p>
     )}
   </div>

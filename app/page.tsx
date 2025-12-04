@@ -89,7 +89,6 @@ export default function MainPage() {
 
           <div className="flex gap-4 overflow-x-auto">
             {contest.images.map((img) => {
-              console.log('Image:', img.body)
               return (
                 <img
                   key={img.id}

@@ -1,9 +1,12 @@
-'use client'
+ 'use client'
 
-import { useState, useEffect,useRef  } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { useRouter,useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/components/AuthContext'
+import ImageUploadModal from '@/components/ImageUploadModal'
+import ResultModal from '@/components/ResultModal'
+import { getAnonymousId, handleupload } from '@/lib/imageHelpers'
 
 export default function ImageCreatePage() {
   const { userinfo, loading } = useAuth()
@@ -40,13 +43,28 @@ export default function ImageCreatePage() {
     }
     fetchContest()
   }, [contestId])
+  // URL을 File 객체로 변환하는 함수
+  async function urlToFile(url: string, filename?: string): Promise<File> {
+    const response = await fetch(url)
+    const blob = await response.blob()
+
+    // 파일 이름이 없으면 URL에서 추출
+    const name = filename || url.split('/').pop() || 'download.png'
+
+    // Blob을 File로 변환
+    return new File([blob], name, { type: blob.type })
+  }
+
 
  const handleImguploadClick = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click() // 숨겨진 input 열기
     }
   }
-  const handleImageSelect = (url: string) => {
+  const handleImageSelect = async (url: string) => {
+    const file = await urlToFile(url)
+    console.log(file)
+    setImageFile(file)
     setImagePreview(url)
     setUploadModalOpen(false) // 모달 닫기
   }
@@ -54,6 +72,7 @@ export default function ImageCreatePage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      setImageFile(file)
       setImagePreview(URL.createObjectURL(file))
       setResultImage(null)
       setUploadModalOpen(false)
@@ -133,66 +152,13 @@ export default function ImageCreatePage() {
     }
   }
 
-  const getAnonymousId = async () => {
-    let anonId = localStorage.getItem('anon_id')
-    if (!anonId) {
-      anonId = `${Date.now()}-${Math.random().toString(36).substring(2, 10)}`
-      localStorage.setItem('anon_id', anonId)
-      const { error } = await supabase.from('temp_info').insert([
-      {
-        id: anonId,
-        lastmake_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-      },
-    ])
-    if (error) {
-      console.error(`❌ 비로그인 유저 저장 실패: ${error.message}`)
-      return
-    }
-    console.log('✅ 유저임시등록 완료!')
-    }
-    return anonId
-  }
-  const handleupload = async (upload_file:File|null,bucket:string) => {
-    if(!upload_file){
-      return ''
-    }
-    // 파일 이름 생성
-    const fileExt = upload_file.name.split('.').pop()
-    const fileName = `${userinfo.user_id}-${Date.now()}.${fileExt}`
-    const filePath = `${fileName}`
-
-    // 1. Storage에 업로드
-    const { error: storageError } = await supabase.storage
-      .from(bucket+'_img')
-      .upload(filePath, upload_file, {
-      cacheControl: '3600',
-      upsert: false,
-      contentType: upload_file.type, 
-    })
-
-    if (storageError) {
-      setMessage(`❌ 이미지 저장 실패: ${storageError.message}`)
-      return
-    }
-
-    // 2. Public URL 생성
-    const { data: publicUrlData } = supabase.storage
-      .from(bucket+'_img')
-      .getPublicUrl(filePath)
-    const imageUrl = publicUrlData.publicUrl
-    if(bucket==='result'){
-      setResultImage(imageUrl)
-      setIsModalOpen(true) // 결과 나오면 모달 열기
-    }
-    return imageUrl
-  
-  }
+  // use imported getAnonymousId from lib/imageHelpers
+  // page 레벨에 숨겨진 input을 항상 렌더링하도록 변경
   const fetchImages = async (pageNum: number) => {
     setUpimgLoading(true)
     const { data, error } = await supabase.storage
       .from('upload_img')
-      .list('', { limit: 10, offset: pageNum * 10 })
+      .list('', { limit: 100, offset: pageNum * 10 })
 
     if (error) {
       console.error('❌ 이미지 불러오기 실패:', error.message)
@@ -212,7 +178,7 @@ export default function ImageCreatePage() {
     if (!imageFile || !prompt) {
       setMessage('❌ 이미지와 프롬프트를 모두 입력해주세요.')
       return
-    }
+    } 
 
     const resultUrl = imageFile // 테스트용 결과 이미지
     
@@ -226,12 +192,21 @@ export default function ImageCreatePage() {
       }else{
         setMessage(`✅ ${count_check.message}`)
       }
+      // 먼저 파일을 각각 업로드하고 반환된 URL을 상태에 반영
+      const uploadedUrl = await handleupload(imageFile, 'upload', userinfo)
+      const completedUrl = await handleupload(resultUrl, 'result', userinfo)
+      // 결과 이미지 상태 업데이트 및 모달 오픈
+      if (completedUrl) {
+        setResultImage(completedUrl)
+        setIsModalOpen(true)
+      }
+
       const { error } = await supabase.from('image_process').insert([
         {
           user_id: userinfo.id,
-          upload_img: await handleupload(imageFile,'upload'),
+          upload_img: uploadedUrl,
           prompt_text: prompt,
-          complete_img: await handleupload(resultUrl,'result'),
+          complete_img: completedUrl,
           created_at: new Date().toISOString(),
         },
       ])
@@ -250,12 +225,20 @@ export default function ImageCreatePage() {
       }
       // 비로그인 사용자 → notlogin_image_process 테이블에 저장
       const anonId = await getAnonymousId()
+      // 업로드 후 결과 모달 표시
+      const uploadedUrl = await handleupload(imageFile, 'upload', userinfo)
+      const completedUrl = await handleupload(resultUrl, 'result', userinfo)
+      if (completedUrl) {
+        setResultImage(completedUrl)
+        setIsModalOpen(true)
+      }
+
       const { error } = await supabase.from('notlogin_image_process').insert([
         {
           user_id: anonId,
-          upload_img: await handleupload(imageFile,'upload'),
+          upload_img: uploadedUrl,
           prompt_text: prompt,
-          complete_img: await handleupload(resultUrl,'result'),
+          complete_img: completedUrl,
           created_at: new Date().toISOString(),
         },
       ])
@@ -336,7 +319,6 @@ export default function ImageCreatePage() {
           <label style={{ marginBottom: '8px' }}>캐릭터</label>
           <button onClick={openModal} style={{ padding: 0, border: 'none', background: 'none' }}>
             <div
-              onClick={handleImguploadClick}
               style={{
                 display: 'flex',
                 justifyContent: 'center',
@@ -359,120 +341,20 @@ export default function ImageCreatePage() {
                 <span style={{ fontSize: '32px', color: '#666' }}>＋</span>
               )}
             </div>
-            </button>
-            {uploadModalOpen && (
-                  <div
-                    style={{
-                      position: 'fixed',
-                      top: 0,
-                      left: 0,
-                      width: '100vw',
-                      height: '100vh',
-                      backgroundColor: 'rgba(0,0,0,0.5)',
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      zIndex: 1000,
-                    }}
-                  >
-                    <div
-                      style={{
-                        backgroundColor: '#fff',
-                        padding: '20px',
-                        borderRadius: '8px',
-                        maxWidth: '600px',
-                        width: '90%',
-                      }}
-                    >
-                      <h3>📋 업로드 이미지 목록</h3>
-
-                      {loading ? (
-                        <header className="w-full flex justify-center p-4 border-b">
-                          <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-blue-500 border-opacity-50"></div>
-                        </header>
-                      ) : (
-                        <div
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(3, 1fr)',
-                            gap: '12px',
-                            padding: '20px',
-                          }}
-                        >
-                          {uploadimages
-                            .slice(upimgpage * 8, upimgpage * 8 + 8) // ✅ 한 페이지에 6개만 표시
-                            .map((img) => {
-                              const url = supabase.storage.from('upload_img').getPublicUrl(img.name).data.publicUrl
-                              return (
-                                <button
-                                key={img.name}
-                                onClick={() => handleImageSelect(url)} // ✅ 이미지 클릭 시 함수 실행
-                                style={{
-                                  borderRadius: '12px',
-                                  overflow: 'hidden',
-                                  boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-                                  backgroundColor: '#f9f9f9',
-                                  height: '120px',
-                                  display: 'flex',
-                                  justifyContent: 'center',
-                                  alignItems: 'center',
-                                }}
-                              >
-                                <img
-                                  src={supabase.storage.from('upload_img').getPublicUrl(img.name).data.publicUrl}
-                                  alt=""
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                />
-                              </button>
-                              )
-                            })}
-
-                          {/* 가운데 + 버튼 */}
-                          <div
-                            onClick={handleImguploadClick}
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                              backgroundColor: '#eee',
-                              borderRadius: '12px',
-                              cursor: 'pointer',
-                              height: '120px',
-                            }}
-                          >
-                            <span style={{ fontSize: '32px', color: '#666' }}>＋</span>
-                          </div>
-                            {/* 숨겨진 파일 입력 */}
-                            <input
-                              type="file"
-                              accept="image/*"
-                              ref={fileInputRef}
-                              style={{ display: 'none' }}
-                              onChange={handleImageChange}
-                            />
-                        </div>
-                      )}
-
-                      {/* 페이지네이션 */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
-                        <button disabled={upimgpage === 0} onClick={() => setupimgPage(upimgpage - 1)}>
-                          ◀ 이전
-                        </button>
-                        <span>{upimgpage + 1} 페이지</span>
-                        <button
-                          disabled={(upimgpage + 1) * 6 >= uploadimages.length}
-                          onClick={() => setupimgPage(upimgpage + 1)}
-                        >
-                          다음 ▶
-                        </button>
-                      </div>
-
-                      <button onClick={() => setUploadModalOpen(false)} style={{ marginTop: '10px' }}>
-                        ❌ 닫기
-                      </button>
-                    </div>
-                  </div>
-            )}
+          </button>
+            <ImageUploadModal
+              open={uploadModalOpen}
+              onClose={() => setUploadModalOpen(false)}
+              uploadimages={uploadimages}
+              loading={loading}
+              upimgpage={upimgpage}
+              setupimgPage={setupimgPage}
+              handleImageSelect={handleImageSelect}
+              handleImguploadClick={handleImguploadClick}
+              fileInputRef={fileInputRef}
+              handleImageChange={handleImageChange}
+              getUrl={(name: string) => supabase.storage.from('upload_img').getPublicUrl(name).data.publicUrl}
+            />
         </div>
         {/* 프롬프트 입력 */}
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
@@ -513,50 +395,13 @@ export default function ImageCreatePage() {
         </div>
       </div>
 
-      {/* ✅ 모달 */}
       {isModalOpen && resultImage && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000,
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#fff',
-              padding: '20px',
-              borderRadius: '8px',
-              maxWidth: '600px',
-              width: '90%',
-              textAlign: 'center',
-            }}
-          >
-            <h4>🖼️ 결과 이미지</h4>
-            <img
-              src={resultImage}
-              alt="결과 이미지"
-              style={{ width: '50%', borderRadius: '8px' }}
-            />
-            <div style={{ display: 'flex', gap: 10, marginTop: 10, justifyContent: 'center' }}>
-              <a href={resultImage} download="result.jpg">
-                <button>📥 다운로드</button>
-              </a>
-              <button onClick={handleUpload}>📤 업로드</button>
-              <button onClick={() => setIsModalOpen(false)}>❌ 닫기</button>
-            </div>
-          </div>
-        </div>
-          )}
+        <ResultModal resultImage={resultImage} onClose={() => setIsModalOpen(false)} onUpload={handleUpload} />
+      )}
 
         <p>{message}</p>
+        {/* 항상 존재하는 숨겨진 파일 입력 (모달과 별개로 페이지에서 사용) */}
+        <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImageChange} />
     </div>
   )
 }

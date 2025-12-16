@@ -7,3 +7,22 @@
   object-fit: cover;
   border-radius: 8px;
 }
+/* Chrome/Safari/WebKit */
+.no-scrollbar::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+/* Firefox */
+.no-scrollbar {
+  scrollbar-width: none !important;
+}
+
+/* IE/Edge legacy */
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE, Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+

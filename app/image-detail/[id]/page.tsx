@@ -1,7 +1,7 @@
 'use client'
 import { HeartIcon as HeartSolid } from '@heroicons/react/24/solid'
 import { HeartIcon as HeartOutline } from '@heroicons/react/24/outline'
-import { useEffect, useState } from 'react'
+import { cache, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useParams } from 'next/navigation'
 import { useAuth } from '@/components/AuthContext'
@@ -43,6 +43,7 @@ export default function ImageDetailPage() {
     const fetchData = async () => {
       if (loading || !userinfo) return
       setUserName(userinfo.username)
+
       const { data: imageData } = await supabase
         .from('image_posts')
         .select('*')
@@ -55,25 +56,32 @@ export default function ImageDetailPage() {
         .select('*')
         .eq('post_id', id)
       setReplies(replyData ?? [])
-
-      const { count, error } = await supabase
-        .from('post_likes')
-        .select('*', { count: 'exact', head: true })
-        .eq('post_id', id)
-      setLikes(count ?? 0)
-
-      const { data } = await supabase
-        .from('post_likes')
-        .select('*')
-        .eq('post_id', id)
-        .eq('user_id', userinfo.id)
-        .single() 
-      setLiked(!!data)
-
-      if (error) {
-        console.error(error)
-        return
+      try {
+          const { count, error } = await supabase
+          .from('post_likes')
+          .select('*', { count: 'exact', head: true })
+          .eq('post_id', id)
+        setLikes(count ?? 0)
+      } catch (error) {
+        console.error('좋아요 수 조회 실패:', error)
       }
+      
+      try {
+        const { data } = await supabase
+          .from('post_likes')
+          .select('*')
+          .eq('post_id', id)
+          .eq('user_id', userinfo.id)
+          .maybeSingle()
+        if(data==null){
+          setLiked(false)
+        }else{
+          setLiked(!!data)
+        }
+      }catch (error) {
+        console.error('댓글 좋아요 수 조회 실패:', error)
+      }
+
       
     }
     fetchData()

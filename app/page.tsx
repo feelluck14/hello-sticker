@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 
@@ -28,7 +28,6 @@ export default function MainPage() {
         return
       }
 
-      // contests가 null일 경우 빈 배열로 처리
       const enriched = await Promise.all(
         (contests ?? []).map(async (contest) => {
           const { data: images } = await supabase
@@ -42,7 +41,6 @@ export default function MainPage() {
           }
         })
       )
-      console.log('Enriched Contests:', enriched)
       setContestList(enriched)
     }
 
@@ -56,18 +54,28 @@ export default function MainPage() {
   const handleCreateImage = (contestId: number) => {
     router.push(`/image-create?board_id=${contestId}`)
   }
-  
+
+  const handleImageBoard = (contestId: number) => {
+    router.push(`/image-board?board_id=${contestId}`)
+  }
   return (
     <main className="p-6">
       {/* 상단 만들기 버튼 */}
-      <div className="flex justify-between items-center mb-6">
         <button
           onClick={handleCreateContest}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          className="ml-auto bg-gray-300 text-gray-700 w-8 h-8 mb-4 flex items-center justify-center rounded hover:bg-gray-400"
         >
-          만들기
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            fill="currentColor"
+            viewBox="0 0 16 16"
+          >
+            <path d="M8 1v14M1 8h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
         </button>
-      </div>
+
 
       {/* contest 행 + 이미지 열 */}
       {contestList.map((contest) => (
@@ -81,27 +89,58 @@ export default function MainPage() {
               >
                 만들기
               </button>
-              <button className="bg-gray-200 px-3 py-1 rounded">갤러리</button>
+              <button
+                onClick={() =>handleImageBoard(contest.id)} 
+                className="bg-gray-200 px-3 py-1 rounded">갤러리</button>
             </div>
           </div>
 
           <p className="text-gray-600 mb-4">{contest.description}</p>
 
-          <div className="flex gap-4 overflow-x-auto">
-            {contest.images.map((img) => {
-              return (
-                <img
-                  key={img.id}
-                  src={img.body}
-                  alt="이모티콘"
-                  className="w-32 aspect-square object-cover rounded shadow cursor-pointer hover:opacity-80"
-                  onClick={() => router.push(`/image-detail/${img.id}`)} // ✅ 클릭 시 상세 페이지 이동
-                />
-              )
-            })}
-          </div>
+          {/* 이미지 리스트 */}
+          <HorizontalScroll>
+            {contest.images.map((img) => (
+              <img
+                key={img.id}
+                src={img.body}
+                alt="이모티콘"
+                className="w-20 aspect-square object-cover rounded shadow cursor-pointer hover:opacity-80"
+                onClick={() => router.push(`/image-detail/${img.id}`)}
+              />
+            ))}
+          </HorizontalScroll>
         </section>
       ))}
     </main>
+  )
+}
+
+/* ✅ 가로 스크롤 컴포넌트 */
+function HorizontalScroll({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    const onWheel = (e: WheelEvent) => {
+      // 세로 휠을 가로 스크롤로 변환
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        el.scrollLeft += e.deltaY
+        e.preventDefault()
+      }
+    }
+
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+
+  return (
+    <div
+      ref={ref}
+      className="flex gap-4 overflow-x-scroll overflow-y-hidden no-scrollbar"
+    >
+      {children}
+    </div>
   )
 }

@@ -14,6 +14,7 @@ type ImagePost = {
   id: number
   body: string
   board_id: number
+  likes?: number
 }
 
 export default function MainPage() {
@@ -35,12 +36,37 @@ export default function MainPage() {
             .select('*')
             .eq('board_id', contest.id)
 
+          // 각 이미지의 좋아요 수 가져오기
+          const imagesWithLikes = await Promise.all(
+            (images ?? []).map(async (img) => {
+              const { count } = await supabase
+                .from('post_likes')
+                .select('*', { count: 'exact', head: true })
+                .eq('post_id', img.id)
+              
+              return {
+                ...img,
+                likes: count ?? 0
+              }
+            })
+          )
+          if(imagesWithLikes!=null){
+            const sortedPosts = [...imagesWithLikes].sort((a, b) => {
+              return b.likes - a.likes
+            })
+            return {
+            ...contest,
+            images: sortedPosts,
+          }
+          }
+
           return {
             ...contest,
-            images: images ?? [],
+            images: imagesWithLikes,
           }
         })
       )
+      console.log(enriched)
       setContestList(enriched)
     }
 
@@ -100,13 +126,19 @@ export default function MainPage() {
           {/* 이미지 리스트 */}
           <HorizontalScroll>
             {contest.images.map((img) => (
-              <img
-                key={img.id}
-                src={img.body}
-                alt="이모티콘"
-                className="w-20 aspect-square object-cover rounded shadow cursor-pointer hover:opacity-80"
-                onClick={() => router.push(`/image-detail/${img.id}`)}
-              />
+              <div key={img.id} className="relative flex-shrink-0">
+                <img
+                  src={img.body}
+                  alt="이모티콘"
+                  className="w-20 aspect-square object-cover rounded shadow cursor-pointer hover:opacity-80"
+                  onClick={() => router.push(`/image-detail/${img.id}`)}
+                />
+                {/* 좋아요 수 표시 */}
+                <div className="absolute top-1 right-1 bg-black bg-opacity-60 text-white text-xs px-1 py-0.5 rounded flex items-center gap-1">
+                  <span>❤️</span>
+                  <span>{img.likes}</span>
+                </div>
+              </div>
             ))}
           </HorizontalScroll>
         </section>

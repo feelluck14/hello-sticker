@@ -6,12 +6,14 @@ import { supabase } from '@/lib/supabaseClient'
 import { useParams } from 'next/navigation'
 import { useAuth } from '@/components/AuthContext'
 
-
 type ImagePost = {
   id: number
   body: string
   user_id: number
   created_at: string
+  users_info?: {
+    username: string
+  }
 }
 
 type Reply = {
@@ -21,47 +23,67 @@ type Reply = {
   post_id: number
   parent_id: number | null
   created_at: string
+  users_info?: {
+    username: string
+  }
 }
 
 export default function ImageDetailPage() {
   const params = useParams()
   const id = params.id as string
   const { userinfo, loading } = useAuth()
-  const [username, setUserName] = useState('')
   const [likes, setLikes] = useState<number>(0)
   const [liked, setLiked] = useState(false)
   const [image, setImage] = useState<ImagePost | null>(null)
   const [replies, setReplies] = useState<Reply[]>([])
   const [newComment, setNewComment] = useState('')
+  const [authorName, setAuthorName] = useState('')
   const [replyTarget, setReplyTarget] = useState<number | null>(null)
   const [replyText, setReplyText] = useState('')
-  const [replyLikes, setReplyLikes] = useState<{ [key: number]: number }>({})
 
+  // 댓글 데이터 가져오는 함수
+  const fetchReplies = async () => {
+    const { data: replyData } = await supabase
+      .from('posts_reply')
+      .select(`
+        *,
+        users_info!inner(username)
+      `)
+      .eq('post_id', id)
+    setReplies(replyData ?? [])
+  }
 
   useEffect(() => {
     
     const fetchData = async () => {
       if (loading || !userinfo) return
-      setUserName(userinfo.username)
-
       const { data: imageData } = await supabase
         .from('image_posts')
-        .select('*')
+        .select(`
+          *,
+          users_info!inner(username)`
+        )
         .eq('id', id)
         .single()
       setImage(imageData)
 
       const { data: replyData } = await supabase
         .from('posts_reply')
-        .select('*')
+        .select(`
+          *,
+          users_info!inner(username)
+        `)
         .eq('post_id', id)
+
       setReplies(replyData ?? [])
+      
+
       try {
           const { count, error } = await supabase
           .from('post_likes')
           .select('*', { count: 'exact', head: true })
           .eq('post_id', id)
-        setLikes(count ?? 0)
+          setLikes(count ?? 0)
       } catch (error) {
         console.error('좋아요 수 조회 실패:', error)
       }
@@ -79,7 +101,7 @@ export default function ImageDetailPage() {
           setLiked(!!data)
         }
       }catch (error) {
-        console.error('댓글 좋아요 수 조회 실패:', error)
+        console.error('좋아요 여부 조회 실패:', error)
       }
 
       
@@ -118,11 +140,7 @@ export default function ImageDetailPage() {
       parent_id: null,
     })
     setNewComment('')
-    const { data: replyData } = await supabase
-      .from('posts_reply')
-      .select('*')
-      .eq('post_id', id)
-    setReplies(replyData ?? [])
+    await fetchReplies()
   }
 
   // 답글 작성
@@ -137,97 +155,87 @@ export default function ImageDetailPage() {
     })
     setReplyText('')
     setReplyTarget(null)
-    const { data: replyData } = await supabase
-      .from('posts_reply')
-      .select('*')
-      .eq('post_id', id)
-    setReplies(replyData ?? [])
+    await fetchReplies()
   }
 
   // 댓글 삭제
   const handleDeleteReply = async (replyId: number) => {
     await supabase.from('posts_reply').delete().eq('id', replyId)
-
-    const { data: replyData } = await supabase
-      .from('posts_reply')
-      .select('*')
-      .eq('post_id', id)
-
-    setReplies(replyData ?? [])
+    await fetchReplies()
   }
 
 
-const renderReplies = (parentId: number | null = null, depth: number = 0) => {
-  return replies
-    .filter((r) => r.parent_id === parentId)
-    .map((r) => (
-      <div
-        key={r.id}
-        className={`ml-${depth * 4} mt-3 p-3 border rounded bg-gray-50`}
-      >
-        {/* 댓글 본문 */}
-        <p className="text-sm text-gray-800 mb-1">{r.body}</p>
+  const renderReplies = (parentId: number | null = null, depth: number = 0) => {
+    return replies
+      .filter((r) => r.parent_id === parentId)
+      .map((r) => (
+        <div
+          key={r.id}
+          className={`ml-${depth * 4} mt-3 p-3 border rounded bg-gray-50`}
+        >
+          {/* 댓글 본문 */}
+          <p className="text-sm text-gray-800 mb-1">{r.body}</p>
 
-        {/* 작성자 + 작성일 */}
-        <div className="flex items-center text-xs text-gray-500 mb-2">
-          <span>작성자: {r.user_id}</span>
-          <span className="ml-2">
-            {new Date(r.created_at).toLocaleString()}
-          </span>
-          {userinfo?.id === r.user_id && (
-            <button
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-200 transition"
-              onClick={() => handleDeleteReply(r.id)}
-            >
-              🗑
-            </button>
-          )}
-        </div>
+          {/* 작성자 + 작성일 */}
+          <div className="flex items-center text-xs text-gray-500 mb-2">
+            <span>작성자: {r.users_info?.username || '알 수 없음'}</span>
+            <span className="ml-2">
+              {new Date(r.created_at).toLocaleString()}
+            </span>
+            {userinfo?.id === r.user_id && (
+              <button
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-200 transition"
+                onClick={() => handleDeleteReply(r.id)}
+              >
+                🗑
+              </button>
+            )}
+          </div>
 
-        {/* 버튼 영역 */}
-        <div className="flex gap-3 text-xs">
-          {depth === 0 && (
-            <button
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
-              onClick={() =>
-                setReplyTarget(replyTarget === r.id ? null : r.id)
-              }
-            >
-              {replyTarget === r.id ? "닫기" : "답글 달기"}
-            </button>
-          )}
-
-            {/* 답글 입력창: 해당 댓글 바로 아래 */}
-            {replyTarget === r.id && (
-              <div className="flex gap-2 mt-2">
-                <input
-                  type="text"
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="답글을 입력하세요"
-                  className="flex-1 border rounded px-2 py-1"
-                />
-                <button
-                  onClick={async () => {
-                    await handleAddReply()
-                    setReplyTarget(null) // 등록 후 닫기
-                  }}
-                  className="bg-green-500 text-white px-3 py-1 rounded"
-                >
-                  답글 등록
-                </button>
-              </div>
+          {/* 버튼 영역 */}
+          <div className="flex gap-3 text-xs">
+            {depth === 0 && (
+              <button
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
+                onClick={() =>
+                  setReplyTarget(replyTarget === r.id ? null : r.id)
+                }
+              >
+                {replyTarget === r.id ? "닫기" : "답글 달기"}
+              </button>
             )}
 
+              {/* 답글 입력창: 해당 댓글 바로 아래 */}
+              {replyTarget === r.id && (
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="text"
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    placeholder="답글을 입력하세요"
+                    className="flex-1 border rounded px-2 py-1"
+                  />
+                  <button
+                    onClick={async () => {
+                      await handleAddReply()
+                      setReplyTarget(null) // 등록 후 닫기
+                    }}
+                    className="bg-green-500 text-white px-3 py-1 rounded"
+                  >
+                    답글 등록
+                  </button>
+                </div>
+              )}
 
 
+
+          </div>
+
+          {/* 재귀적으로 답글 렌더링 */}
+          {renderReplies(r.id, depth + 1)}
         </div>
-
-        {/* 재귀적으로 답글 렌더링 */}
-        {renderReplies(r.id, depth + 1)}
-      </div>
-    ))
-}
+      ))
+  }
 
   if (!image) return(
       <header className="w-full flex justify-center p-4 border-b">
@@ -243,7 +251,7 @@ const renderReplies = (parentId: number | null = null, depth: number = 0) => {
         alt="이모티콘"
         className="w-64 aspect-square object-cover rounded shadow mb-4"
       />
-    <span className="text-gray-600">작성자 ID: {username}</span>
+    <span className="text-gray-600">작성자 ID: {image.users_info?.username}</span>
     <button
         onClick={toggleLike}
         className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition

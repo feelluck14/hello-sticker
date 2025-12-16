@@ -21,14 +21,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
 
         <div className="flex justify-center min-h-screen">
-          {/* 스마트폰 화면 비율 박스 */}
-          <div className="w-full max-w-sm aspect-[9/16] bg-white shadow-lg rounded-lg overflow">
+          {/* 스마트폰 화면 비율 박스 - 전체화면처럼 보이도록 수정 */}
+          <div className="w-full max-w-sm min-h-screen bg-white overflow-auto">
             <Header />
             <ClientLayout>{children}</ClientLayout>
           </div>
         </div>
-        </AuthProvider>
-      </body>
+        </AuthProvider></body>
     </html>
   );
 }

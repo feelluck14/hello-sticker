@@ -18,6 +18,7 @@ export default function ImageCreatePage() {
   const [contestData, setContestData] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false) // 만들기 모달 상태
   const [uploadModalOpen, setUploadModalOpen] = useState(false) // 업로드이미지 모달 상태
+  const [resultLoading, setResultLoading] = useState(false) // 결과 이미지 로딩 상태
   const [message, setMessage] = useState('')
   const [uploadimages, setUploadImages] = useState<any[]>([])
   const [upimgpage, setupimgPage] = useState(0)
@@ -192,14 +193,16 @@ export default function ImageCreatePage() {
       }else{
         setMessage(`✅ ${count_check.message}`)
       }
+      // 결과 모달 열기 및 로딩 시작
+      setIsModalOpen(true)
+      setResultLoading(true)
+      
       // 먼저 파일을 각각 업로드하고 반환된 URL을 상태에 반영
       const uploadedUrl = await handleupload(imageFile, 'upload', userinfo)
       const completedUrl = await handleupload(resultUrl, 'result', userinfo)
-      // 결과 이미지 상태 업데이트 및 모달 오픈
-      if (completedUrl) {
-        setResultImage(completedUrl)
-        setIsModalOpen(true)
-      }
+      // 결과 이미지 상태 업데이트 및 로딩 완료
+      setResultImage(completedUrl)
+      setResultLoading(false)
 
       const { error } = await supabase.from('image_process').insert([
         {
@@ -225,13 +228,15 @@ export default function ImageCreatePage() {
       }
       // 비로그인 사용자 → notlogin_image_process 테이블에 저장
       const anonId = await getAnonymousId()
+      // 결과 모달 열기 및 로딩 시작
+      setIsModalOpen(true)
+      setResultLoading(true)
+      
       // 업로드 후 결과 모달 표시
       const uploadedUrl = await handleupload(imageFile, 'upload', userinfo)
       const completedUrl = await handleupload(resultUrl, 'result', userinfo)
-      if (completedUrl) {
-        setResultImage(completedUrl)
-        setIsModalOpen(true)
-      }
+      setResultImage(completedUrl)
+      setResultLoading(false)
 
       const { error } = await supabase.from('notlogin_image_process').insert([
         {
@@ -395,8 +400,8 @@ export default function ImageCreatePage() {
         </div>
       </div>
 
-      {isModalOpen && resultImage && (
-        <ResultModal resultImage={resultImage} onClose={() => setIsModalOpen(false)} onUpload={handleUpload} />
+      {isModalOpen && (
+        <ResultModal resultImage={resultImage} loading={resultLoading} onClose={() => setIsModalOpen(false)} onUpload={handleUpload} />
       )}
 
         <p>{message}</p>

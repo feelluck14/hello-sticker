@@ -27,7 +27,7 @@ export default function Header() {
 
       {userinfo ? (
         <div className="flex gap-4">
-          <Link href="/mypage">마이페이지</Link>
+          <Link href="/my-page">마이페이지</Link>
           <button onClick={logout}>로그아웃</button>
         </div>
       ) : (

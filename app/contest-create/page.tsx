@@ -1,43 +1,36 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/components/AuthContext'
 
 export default function ContestCreatePage() {
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
+  const { userinfo, loading } = useAuth()
   const router = useRouter()
+  useEffect(() => {
+    if (loading) return; // 아직 로딩 중이면 실행하지 않음
+    if (!userinfo) {
+      alert('로그인이 필요합니다.');
+      router.push('/auth');
+    }
+  }, [loading, userinfo]);
 
   const handleSubmit = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-
-    if (!session) {
-      alert('로그인이 필요합니다.')
+    
+    if (!userinfo) {
+      alert('사용자 정보가 없습니다. 새로고침 후 다시 시도해주세요.')
       return
     }
-
-    const authId = session.user.id
-    // 1. user_info 테이블에서 해당 사용자 찾기
-    const { data: userInfo, error: userInfoError } = await supabase
-      .from('users_info')
-      .select('id')
-      .eq('user_id', authId)
-      .single()
-
-    if (userInfoError || !userInfo) {
-      alert('사용자 정보가 없습니다.')
-      return
-    }
-    const user_id = userInfo.id // contest_posts에 들어갈 int형 ID
+    const user_id = userinfo.user_id // contest_posts에 들어갈 int형 ID
 
     let imagePath = ''
     // 이미지가 선택된 경우에만 업로드
     if (imageFile) {
-      const fileName = `${authId}-${Date.now()}_${imageFile.name}`
+      const fileName = `${user_id}-${Date.now()}_${imageFile.name}`
       const { error: uploadError } = await supabase.storage
         .from('contest_img')
         .upload(fileName, imageFile, {

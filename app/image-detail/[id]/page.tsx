@@ -3,7 +3,7 @@ import { HeartIcon as HeartSolid } from '@heroicons/react/24/solid'
 import { HeartIcon as HeartOutline } from '@heroicons/react/24/outline'
 import { cache, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { useParams } from 'next/navigation'
+import { useParams,useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthContext'
 
 type ImagePost = {
@@ -40,7 +40,7 @@ export default function ImageDetailPage() {
   const [authorName, setAuthorName] = useState('')
   const [replyTarget, setReplyTarget] = useState<number | null>(null)
   const [replyText, setReplyText] = useState('')
-
+  const router = useRouter()
   // 댓글 데이터 가져오는 함수
   const fetchReplies = async () => {
     const { data: replyData } = await supabase
@@ -56,7 +56,7 @@ export default function ImageDetailPage() {
   useEffect(() => {
     
     const fetchData = async () => {
-      if (loading || !userinfo) return
+      if (loading) return
       const { data: imageData } = await supabase
         .from('image_posts')
         .select(`
@@ -77,7 +77,23 @@ export default function ImageDetailPage() {
 
       setReplies(replyData ?? [])
       
-
+      if(userinfo){
+        try {
+          const { data } = await supabase
+            .from('post_likes')
+            .select('*')
+            .eq('post_id', id)
+            .eq('user_id', userinfo.id)
+            .maybeSingle()
+          if(data==null){
+            setLiked(false)
+          }else{
+            setLiked(!!data)
+          }
+        }catch (error) {
+          console.error('좋아요 여부 조회 실패:', error)
+        }
+      }
       try {
           const { count, error } = await supabase
           .from('post_likes')
@@ -88,21 +104,7 @@ export default function ImageDetailPage() {
         console.error('좋아요 수 조회 실패:', error)
       }
       
-      try {
-        const { data } = await supabase
-          .from('post_likes')
-          .select('*')
-          .eq('post_id', id)
-          .eq('user_id', userinfo.id)
-          .maybeSingle()
-        if(data==null){
-          setLiked(false)
-        }else{
-          setLiked(!!data)
-        }
-      }catch (error) {
-        console.error('좋아요 여부 조회 실패:', error)
-      }
+      
 
       
     }
@@ -111,6 +113,10 @@ export default function ImageDetailPage() {
 
   // 좋아요 토글
   const toggleLike = async () => {
+    if (!userinfo) {
+      alert('로그인이 필요합니다.');
+      return
+    }
   if (liked) {
       // 좋아요 취소
       await supabase
@@ -131,6 +137,10 @@ export default function ImageDetailPage() {
   }
   // 댓글 작성
   const handleAddComment = async () => {
+    if(!userinfo){
+      alert('로그인이 필요합니다.');
+      return
+    }
     const userId = userinfo.id// 실제 로그인 유저 ID 가져오기
     if (!newComment.trim()) return
     await supabase.from('posts_reply').insert({
@@ -145,6 +155,10 @@ export default function ImageDetailPage() {
 
   // 답글 작성
   const handleAddReply = async () => {
+    if(!userinfo){
+      alert('로그인이 필요합니다.');
+      return
+    }
     const userId = userinfo.id // 실제 로그인 유저 ID 가져오기
     if (!replyText.trim() || replyTarget === null) return
     await supabase.from('posts_reply').insert({

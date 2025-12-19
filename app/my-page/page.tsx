@@ -28,6 +28,7 @@ export default function MyPage() {
 
   useEffect(() => {
     if (!loading && !userinfo) {
+      alert('로그인이 필요합니다.');
       router.push('/auth')
       return
     }

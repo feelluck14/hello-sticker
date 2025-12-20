@@ -43,11 +43,33 @@ export default function AuthPage() {
           .eq('email', user.email)
           .maybeSingle()
 
+        let nickname;
+        let exists = true;
+        while (exists) {
+          // 난수 닉네임 생성
+          nickname = "user_" + Math.random().toString(36).substring(2, 8);
+          
+          // DB에 중복 여부 확인
+          const { data } = await supabase
+            .from("users_info")
+            .select("nickname")
+            .eq("nickname", nickname);
+
+          if(data!=null){
+            exists = data && data.length > 0;
+          }
+          else{
+            alert('닉네임 생성 중 오류가 발생했습니다. 다시 시도해주세요.')
+            return;
+          }
+        }
+
         if (!existingUser) {
           await supabase.from('users_info').insert({
             user_id: user.id,
             email: user.email,
             username: user.user_metadata.full_name,
+            nickname: nickname,
             created_at: new Date().toISOString(),
           })
         }

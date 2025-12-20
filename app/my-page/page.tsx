@@ -129,6 +129,7 @@ export default function MyPage() {
           <div className="space-y-2">
             <p><strong>이름:</strong> {userinfo.username}</p>
             <p><strong>이메일:</strong> {userinfo.email}</p>
+            <p><strong>닉네임:</strong> {userinfo.nickname}</p>
             {userinfo.phone && <p><strong>휴대폰:</strong> {userinfo.phone}</p>}
             {userinfo.birth && <p><strong>생년월일:</strong> {userinfo.birth}</p>}
           </div>

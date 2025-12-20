@@ -12,7 +12,7 @@ type ImagePost = {
   user_id: number
   created_at: string
   users_info?: {
-    username: string
+    nickname: string
   }
 }
 
@@ -24,7 +24,7 @@ type Reply = {
   parent_id: number | null
   created_at: string
   users_info?: {
-    username: string
+    nickname: string
   }
 }
 
@@ -47,7 +47,7 @@ export default function ImageDetailPage() {
       .from('posts_reply')
       .select(`
         *,
-        users_info!inner(username)
+        users_info!inner(nickname)
       `)
       .eq('post_id', id)
     setReplies(replyData ?? [])
@@ -61,7 +61,7 @@ export default function ImageDetailPage() {
         .from('image_posts')
         .select(`
           *,
-          users_info!inner(username)`
+          users_info!inner(nickname)`
         )
         .eq('id', id)
         .single()
@@ -71,7 +71,7 @@ export default function ImageDetailPage() {
         .from('posts_reply')
         .select(`
           *,
-          users_info!inner(username)
+          users_info!inner(nickname)
         `)
         .eq('post_id', id)
 
@@ -192,7 +192,7 @@ export default function ImageDetailPage() {
 
           {/* 작성자 + 작성일 */}
           <div className="flex items-center text-xs text-gray-500 mb-2">
-            <span>작성자: {r.users_info?.username || '알 수 없음'}</span>
+            <span>작성자: {r.users_info?.nickname || '알 수 없음'}</span>
             <span className="ml-2">
               {new Date(r.created_at).toLocaleString()}
             </span>
@@ -265,7 +265,7 @@ export default function ImageDetailPage() {
         alt="이모티콘"
         className="w-64 aspect-square object-cover rounded shadow mb-4"
       />
-    <span className="text-gray-600">작성자 ID: {image.users_info?.username}</span>
+    <span className="text-gray-600">작성자 ID: {image.users_info?.nickname}</span>
     <button
         onClick={toggleLike}
         className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition

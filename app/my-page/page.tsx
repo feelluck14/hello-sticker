@@ -20,11 +20,20 @@ type LikedPost = {
 }
 
 export default function MyPage() {
-  const { userinfo, loading } = useAuth()
+  const { userinfo, loading, login } = useAuth()
   const router = useRouter()
   const [userPosts, setUserPosts] = useState<UserPost[]>([])
   const [likedPosts, setLikedPosts] = useState<LikedPost[]>([])
   const [activeTab, setActiveTab] = useState<'posts' | 'likes'>('posts')
+  const [isEditing, setIsEditing] = useState(false)
+  const [editForm, setEditForm] = useState({
+    username: '',
+    nickname: '',
+    phone: '',
+    birth: ''
+  })
+  const [nicknameChecked, setNicknameChecked] = useState(false)
+  const [nicknameAvailable, setNicknameAvailable] = useState<boolean | null>(null)
 
   useEffect(() => {
     if (!loading && !userinfo) {
@@ -36,6 +45,14 @@ export default function MyPage() {
     if (userinfo) {
       fetchUserPosts()
       fetchLikedPosts()
+      setEditForm({
+        username: userinfo.username || '',
+        nickname: userinfo.nickname || '',
+        phone: userinfo.phone || '',
+        birth: userinfo.birth || ''
+      })
+      setNicknameChecked(false)
+      setNicknameAvailable(null)
     }
   }, [userinfo, loading])
 
@@ -107,6 +124,84 @@ export default function MyPage() {
     setLikedPosts(postsWithLikes)
   }
 
+  const checkNicknameAvailability = async () => {
+    if (!userinfo || editForm.nickname === userinfo.nickname) {
+      setNicknameChecked(true)
+      setNicknameAvailable(true)
+      return
+    }
+
+    if (editForm.nickname.trim() === '') {
+      alert('닉네임을 입력해주세요.')
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('users_info')
+      .select('nickname')
+      .eq('nickname', editForm.nickname)
+      .neq('user_id', userinfo.user_id)
+
+    if (error) {
+      alert('닉네임 체크 실패: ' + error.message)
+      return
+    }
+
+    const isAvailable = data.length === 0
+    setNicknameAvailable(isAvailable)
+    setNicknameChecked(true)
+
+    if (!isAvailable) {
+      alert('이미 사용중인 닉네임입니다.')
+    }
+  }
+
+  const handleSaveProfile = async () => {
+    if (!userinfo) return
+
+    // 필수 필드 검증
+    if (editForm.username.trim() === '' || editForm.nickname.trim() === '') {
+      alert('이름과 닉네임을 입력해주세요.')
+      return
+    }
+
+    // 닉네임 변경 시 중복 체크 확인
+    if (editForm.nickname !== userinfo.nickname && (!nicknameChecked || !nicknameAvailable)) {
+      alert('닉네임 중복 체크를 해주세요.')
+      return
+    }
+
+    const { error } = await supabase
+      .from('users_info')
+      .update({
+        username: editForm.username,
+        nickname: editForm.nickname,
+        phone: editForm.phone.trim() === '' ? null : editForm.phone,
+        birth: editForm.birth.trim() === '' ? null : editForm.birth
+      })
+      .eq('user_id', userinfo.user_id)
+
+    if (error) {
+      alert('프로필 업데이트 실패: ' + error.message)
+    } else {
+      await login!() // userinfo 새로고침
+      alert('프로필이 업데이트되었습니다.')
+      setIsEditing(false)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditForm({
+      username: userinfo.username || '',
+      nickname: userinfo.nickname || '',
+      phone: userinfo.phone || '',
+      birth: userinfo.birth || ''
+    })
+    setIsEditing(false)
+    setNicknameChecked(false)
+    setNicknameAvailable(null)
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -123,16 +218,106 @@ export default function MyPage() {
     <main className="p-6 max-w-4xl mx-auto">
       {/* 프로필 섹션 */}
       <section className="mb-8">
-        <h1 className="text-2xl font-bold mb-4">마이페이지</h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-2xl font-bold">마이페이지</h1>
+          {!isEditing && (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              수정
+            </button>
+          )}
+        </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-xl font-semibold mb-2">프로필 정보</h2>
-          <div className="space-y-2">
-            <p><strong>이름:</strong> {userinfo.username}</p>
-            <p><strong>이메일:</strong> {userinfo.email}</p>
-            <p><strong>닉네임:</strong> {userinfo.nickname}</p>
-            {userinfo.phone && <p><strong>휴대폰:</strong> {userinfo.phone}</p>}
-            {userinfo.birth && <p><strong>생년월일:</strong> {userinfo.birth}</p>}
-          </div>
+          {isEditing ? (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">이름</label>
+                <input
+                  type="text"
+                  value={editForm.username}
+                  onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                  className="w-full p-2 border rounded"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">닉네임</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={editForm.nickname}
+                    onChange={(e) => {
+                      setEditForm({ ...editForm, nickname: e.target.value })
+                      if (e.target.value !== userinfo.nickname) {
+                        setNicknameChecked(false)
+                        setNicknameAvailable(null)
+                      }
+                    }}
+                    className="flex-1 p-2 border rounded"
+                  />
+                  <button
+                    onClick={checkNicknameAvailability}
+                    disabled={editForm.nickname === userinfo.nickname || editForm.nickname.trim() === ''}
+                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+                  >
+                    중복체크
+                  </button>
+                </div>
+                {nicknameChecked && (
+                  <p className={`text-sm mt-1 ${nicknameAvailable ? 'text-green-600' : 'text-red-600'}`}>
+                    {nicknameAvailable ? '사용 가능한 닉네임입니다.' : '이미 사용중인 닉네임입니다.'}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">휴대폰</label>
+                <input
+                  type="text"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  className="w-full p-2 border rounded"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">생년월일</label>
+                <input
+                  type="date"
+                  value={editForm.birth}
+                  onChange={(e) => setEditForm({ ...editForm, birth: e.target.value })}
+                  className="w-full p-2 border rounded"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={
+                    editForm.username.trim() === '' ||
+                    editForm.nickname.trim() === '' ||
+                    (editForm.nickname !== userinfo.nickname && (!nicknameChecked || !nicknameAvailable))
+                  }
+                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400"
+                >
+                  저장
+                </button>
+                <button
+                  onClick={handleCancelEdit}
+                  className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p><strong>이름:</strong> {userinfo.username}</p>
+              <p><strong>이메일:</strong> {userinfo.email}</p>
+              <p><strong>닉네임:</strong> {userinfo.nickname}</p>
+              {userinfo.phone && <p><strong>휴대폰:</strong> {userinfo.phone}</p>}
+              {userinfo.birth && <p><strong>생년월일:</strong> {userinfo.birth}</p>}
+            </div>
+          )}
         </div>
       </section>
 

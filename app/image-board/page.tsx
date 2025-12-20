@@ -11,7 +11,7 @@ type Post = {
   created_at: string
   likes: number
   users_info?: {
-    username: string
+    nickname: string
   }
 }
 
@@ -29,7 +29,7 @@ export default function ImageBoardPage() {
         .from('image_posts') 
         .select(`
         *,
-        users_info!inner(username)
+        users_info!inner(nickname)
         `)
         .eq('board_id', contestId)
       if (error) {
@@ -92,7 +92,7 @@ export default function ImageBoardPage() {
             />
             {/* 정보 (가로 배치) */}
             <div className="flex flex-col gap-1 text-sm">
-              <div>작성자: {post.users_info?.username}</div>
+              <div>작성자: {post.users_info?.nickname}</div>
               <div>❤️ 좋아요: {post.likes}</div>
               <div className="text-gray-500">{new Date(post.created_at).toLocaleString()}</div>
             </div>

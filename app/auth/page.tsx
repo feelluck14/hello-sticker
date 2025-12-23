@@ -25,57 +25,18 @@ export default function AuthPage() {
   }, [])
 
   const handleGoogleLogin = async () => {
-    const { data,error } = await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: 'http://localhost:3000' // 개발 환경일 경우
+        redirectTo: 'http://192.168.0.12:3000/' // 개발 환경일 경우
       }
     })
+    
     if (error) {
       console.error('로그인 실패:', error.message)
-    }else{
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        // 커스텀 테이블에 유저 정보 저장
-        const { data: existingUser } = await supabase
-          .from('users_info')
-          .select('*')
-          .eq('email', user.email)
-          .maybeSingle()
-
-        let nickname;
-        let exists = true;
-        while (exists) {
-          // 난수 닉네임 생성
-          nickname = "user_" + Math.random().toString(36).substring(2, 8);
-          
-          // DB에 중복 여부 확인
-          const { data } = await supabase
-            .from("users_info")
-            .select("nickname")
-            .eq("nickname", nickname);
-
-          if(data!=null){
-            exists = data && data.length > 0;
-          }
-          else{
-            alert('닉네임 생성 중 오류가 발생했습니다. 다시 시도해주세요.')
-            return;
-          }
-        }
-
-        if (!existingUser) {
-          await supabase.from('users_info').insert({
-            user_id: user.id,
-            email: user.email,
-            username: user.user_metadata.full_name,
-            nickname: nickname,
-            created_at: new Date().toISOString(),
-          })
-        }
-      }
+      alert('로그인 실패: ' + error.message)
     }
-    // 성공 시에는 OAuth 리다이렉트가 발생하므로 별도 처리 불필요
+    // 성공 시에는 OAuth 리다이렉트가 발생하고, AuthContext에서 유저 정보 처리를 자동으로 수행
   }
 
   const handleLogin = async (e: React.FormEvent) => {

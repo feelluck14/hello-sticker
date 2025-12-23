@@ -17,6 +17,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [userinfo, setUserInfo] = useState<any>(null)
+  const [isCreatingUserInfo, setIsCreatingUserInfo] = useState(false)
   const router = useRouter()
 
   const getUser = async () => {
@@ -27,12 +28,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const { data, error } = await supabase
         .from('users_info')
         .select('*')
-        .eq('user_id', user.id)   // user_info 테이블의 PK가 auth.users.id와 동일해야 함
+        .eq('user_id', user.id)
 
       if (error) {
         console.error('user_info 조회 실패:', error.message)
       } else {
-        setUserInfo(data?.[0] || null)
+        // 일반 로그인 시에만 생성, OAuth는 onAuthStateChange에서 처리
+        if (!data || data.length === 0) {
+          console.log('일반 로그인: 유저 정보가 없어 생성합니다...')
+          await createUserInfo(user)
+        } else {
+          setUserInfo(data[0])
+        }
       }
     } else {
       setUserInfo(null)
@@ -40,15 +47,126 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setLoading(false)
   }
 
-  useEffect(() => {
-    getUser()
+  const createUserInfo = async (user: any) => {
+    // 이미 생성 중이면 중복 실행 방지
+    if (isCreatingUserInfo) {
+      console.log('유저 정보 생성이 이미 진행 중입니다.')
+      return
+    }
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+    setIsCreatingUserInfo(true)
+
+    try {
+      // 생성 전에 다시 한 번 확인 (.single()로 정확한 확인)
+      const { data: existingData, error: checkError } = await supabase
+        .from('users_info')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116은 데이터가 없을 때의 정상 에러
+        console.error('유저 정보 존재 확인 오류:', checkError)
+        return
+      }
+
+      if (existingData) {
+        console.log('유저 정보가 이미 존재합니다.')
+        setUserInfo(existingData)
+        return
+      }
+
+      // 난수 닉네임 생성
+      let nickname;
+      let exists = true;
+      let attempts = 0;
+      const maxAttempts = 10;
+
+      while (exists && attempts < maxAttempts) {
+        nickname = "user_" + Math.random().toString(36).substring(2, 8);
+        
+        const { data, error: checkError } = await supabase
+          .from("users_info")
+          .select("nickname")
+          .eq("nickname", nickname);
+
+        if (checkError) {
+          console.error('닉네임 중복 체크 오류:', checkError)
+          return;
+        }
+
+        exists = data && data.length > 0;
+        attempts++;
+      }
+
+      if (attempts >= maxAttempts) {
+        console.error('닉네임 생성 실패: 최대 시도 횟수 초과')
+        return;
+      }
+
+      // 유저 정보 생성
+      const { error: insertError } = await supabase.from('users_info').insert({
+        user_id: user.id,
+        email: user.email,
+        username: user.user_metadata?.full_name || user.email?.split('@')[0] || '사용자',
+        nickname: nickname,
+        created_at: new Date().toISOString(),
+      })
+
+      if (insertError) {
+        console.error('유저 정보 생성 실패:', insertError)
+      } else {
+        console.log('유저 정보 생성 완료')
+        // 생성한 데이터를 직접 사용
+        const newUserInfo = {
+          user_id: user.id,
+          email: user.email,
+          username: user.user_metadata?.full_name || user.email?.split('@')[0] || '사용자',
+          nickname: nickname,
+          phone: null,
+          birth: null,
+          created_at: new Date().toISOString(),
+        }
+        setUserInfo(newUserInfo)
+      }
+    } catch (error) {
+      console.error('유저 정보 생성 중 오류:', error)
+    } finally {
+      setIsCreatingUserInfo(false)
+    }
+  }
+
+  useEffect(() => {
+    // OAuth 로그인의 경우 onAuthStateChange에서 처리하므로 getUser() 생략
+    // getUser()
+
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT' || !session) {
         setUser(null)
+        setUserInfo(null)
         router.push('/auth') // 세션 만료 시 로그인 페이지로 이동
       } else {
         setUser(session.user)
+        // SIGNED_IN 이벤트일 때만 유저 정보 확인 및 생성 (중복 생성 방지)
+        if (event === 'SIGNED_IN' && session.user) {
+          try {
+            const { data, error } = await supabase
+              .from('users_info')
+              .select('*')
+              .eq('user_id', session.user.id)
+
+            if (error) {
+              console.error('user_info 조회 실패:', error.message)
+            } else if (!data || data.length === 0) {
+              console.log('OAuth 로그인: 유저 정보가 없어 생성합니다...')
+              await createUserInfo(session.user)
+            } else {
+              console.log('OAuth 로그인: 기존 유저 정보 사용')
+              setUserInfo(data[0])
+            }
+          } catch (err) {
+            console.error('onAuthStateChange에서 유저 정보 처리 중 오류:', err)
+          }
+        }
       }
       setLoading(false)
     })

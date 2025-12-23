@@ -28,7 +28,11 @@ export default function Header() {
       {userinfo ? (
         <div className="flex gap-4">
           <Link href="/my-page">마이페이지</Link>
-          <button onClick={logout}>로그아웃</button>
+          <button onClick={async () => {
+            if (logout) {
+              await logout()
+            }
+          }}>로그아웃</button>
         </div>
       ) : (
         <Link href="/auth">로그인</Link>

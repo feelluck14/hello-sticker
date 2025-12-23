@@ -182,10 +182,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         userinfo,
         loading,
         logout: async () => {
-          await supabase.auth.signOut()
-          setUser(null)
-          setUserInfo(null)
-          router.push('/')
+          console.log('로그아웃 시작')
+          try {
+            // 상태 초기화
+            setUser(null)
+            setUserInfo(null)
+            
+            // Supabase 로그아웃
+            const { error } = await supabase.auth.signOut()
+            if (error) {
+              console.error('Supabase 로그아웃 실패:', error)
+            }
+            
+            // 로컬 스토리지 클리어
+            if (typeof window !== 'undefined') {
+              localStorage.clear()
+              sessionStorage.clear()
+            }
+            
+            // 약간의 지연 후 리다이렉트
+            setTimeout(() => {
+              router.push('/auth')
+            }, 100)
+          } catch (error) {
+            console.error('로그아웃 중 오류:', error)
+            // 오류가 발생해도 강제 리다이렉트
+            setUser(null)
+            setUserInfo(null)
+            setTimeout(() => {
+              router.push('/auth')
+            }, 100)
+          }
         },        
         login: async () => {
           await getUser()

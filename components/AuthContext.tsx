@@ -146,8 +146,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         router.push('/auth') // 세션 만료 시 로그인 페이지로 이동
       } else {
         setUser(session.user)
-        // SIGNED_IN 이벤트일 때만 유저 정보 확인 및 생성 (중복 생성 방지)
-        if (event === 'SIGNED_IN' && session.user) {
+        // 세션이 있으면 (INITIAL_SESSION 포함) 사용자 정보를 가져와 설정
+        if (session.user) {
           try {
             const { data, error } = await supabase
               .from('users_info')
@@ -156,15 +156,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
             if (error) {
               console.error('user_info 조회 실패:', error.message)
+              setUserInfo(null)
             } else if (!data || data.length === 0) {
-              console.log('OAuth 로그인: 유저 정보가 없어 생성합니다...')
+              console.log('세션 확인: 유저 정보가 없어 생성합니다...')
               await createUserInfo(session.user)
             } else {
-              console.log('OAuth 로그인: 기존 유저 정보 사용')
+              console.log('세션 확인: 기존 유저 정보 사용')
               setUserInfo(data[0])
             }
           } catch (err) {
             console.error('onAuthStateChange에서 유저 정보 처리 중 오류:', err)
+            setUserInfo(null)
           }
         }
       }

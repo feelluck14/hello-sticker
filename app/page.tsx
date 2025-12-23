@@ -66,7 +66,6 @@ export default function MainPage() {
           }
         })
       )
-      console.log(enriched)
       setContestList(enriched)
     }
 

@@ -64,7 +64,7 @@ export default function ImageCreatePage() {
   }
   const handleImageSelect = async (url: string) => {
     const file = await urlToFile(url)
-    console.log(file)
+    console.log(file)  
     setImageFile(file)
     setImagePreview(url)
     setUploadModalOpen(false) // 모달 닫기
@@ -73,23 +73,27 @@ export default function ImageCreatePage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      console.log(file)
       setImageFile(file)
       setImagePreview(URL.createObjectURL(file))
       setResultImage(null)
       setUploadModalOpen(false)
     }
   }
-  const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+
+
 
   async function handleMake(user: any, isLogin: boolean) {
+    const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
     if (isLogin) {
       // 로그인 유저
+      console.log(user.id)
       const { data, error } = await supabase
         .from('users_info')
         .select('lastmake_at, makecount, maxcount')
         .eq('id', user.id)
         .single()
-
+      console.log(user.id)
       if (error) {
         console.error(error)
         return { success: false, message: '조회 실패' }
@@ -180,7 +184,7 @@ export default function ImageCreatePage() {
       setMessage('❌ 이미지와 프롬프트를 모두 입력해주세요.')
       return
     } 
-
+    
     const resultUrl = imageFile // 테스트용 결과 이미지
     
     // 로그인 여부 확인

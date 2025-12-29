@@ -16,6 +16,9 @@ export default function AuthPage() {
   const [phone, setPhone] = useState('')
   const [gender, setGender] = useState('')
   const [birth, setBirthdate] = useState('')
+  const [nickname, setNickname] = useState('')
+  const [nicknameChecked, setNicknameChecked] = useState(false)
+  const [nicknameAvailable, setNicknameAvailable] = useState(false)
   const router = useRouter()
   // 로그인 상태 확인
   useEffect(() => {
@@ -59,10 +62,16 @@ export default function AuthPage() {
   const handleSignup = async (e: React.FormEvent) => {
   e.preventDefault()
 
+  if (!nicknameChecked || !nicknameAvailable) {
+    alert('닉네임 중복 체크를 완료해주세요.')
+    setMessage('닉네임 중복 체크를 완료해주세요.')
+    return
+  }
+
   const res = await fetch('/api/signup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, username, phone, gender, birth }),
+    body: JSON.stringify({ email, password, username, phone, gender, birth, nickname }),
   })
 
   const data = await res.json()
@@ -78,8 +87,42 @@ export default function AuthPage() {
     setPhone('')
     setGender('')
     setBirthdate('')
+    setNickname('')
+    setNicknameChecked(false)
+    setNicknameAvailable(false)
+    setNickname('')
+    setNicknameChecked(false)
+    setNicknameAvailable(false)
   }
 }
+
+  const handleCheckNickname = async () => {
+    if (!nickname.trim()) {
+      alert('닉네임을 입력해주세요.')
+      setMessage('닉네임을 입력해주세요.')
+      return
+    }
+
+    const res = await fetch('/api/check-nickname', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nickname }),
+    })
+
+    const data = await res.json()
+
+    if (data.available) {
+      alert('✅ 사용 가능한 닉네임입니다.')
+      setMessage('✅ 사용 가능한 닉네임입니다.')
+      setNicknameChecked(true)
+      setNicknameAvailable(true)
+    } else {
+      alert('❌ 이미 사용중인 닉네임입니다.')
+      setMessage('❌ 이미 사용중인 닉네임입니다.')
+      setNicknameChecked(true)
+      setNicknameAvailable(false)
+    }
+  }
   return (
     <div style={{
   maxWidth: 400,
@@ -117,6 +160,23 @@ export default function AuthPage() {
     )}
     {mode === 'signup' && (
       <>
+        <label>
+          닉네임
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input value={nickname} onChange={(e) => { setNickname(e.target.value); setNicknameChecked(false); setNicknameAvailable(false); }} required />
+            <button type="button" onClick={handleCheckNickname} style={{
+              padding: '8px 12px',
+              backgroundColor: '#6b7280',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}>
+              중복체크
+            </button>
+          </div>
+        </label>
+
         <label>
           이름
           <input value={username} onChange={(e) => setName(e.target.value)} />

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useAuth } from '@/components/AuthContext'
 import { useRouter } from 'next/navigation'
+import { useI18n } from '@/components/I18nContext'
 
 type UserPost = {
   id: number
@@ -22,6 +23,7 @@ type LikedPost = {
 export default function MyPage() {
   const { userinfo, loading, login } = useAuth()
   const router = useRouter()
+  const { t } = useI18n()
   const [userPosts, setUserPosts] = useState<UserPost[]>([])
   const [likedPosts, setLikedPosts] = useState<LikedPost[]>([])
   const [activeTab, setActiveTab] = useState<'posts' | 'likes'>('posts')
@@ -37,7 +39,7 @@ export default function MyPage() {
 
   useEffect(() => {
     if (!loading && !userinfo) {
-      alert('로그인이 필요합니다.');
+      alert(t('myPage.loginRequired'));
       router.push('/auth')
       return
     }
@@ -132,7 +134,7 @@ export default function MyPage() {
     }
 
     if (editForm.nickname.trim() === '') {
-      alert('닉네임을 입력해주세요.')
+      alert(t('myPage.enterNickname'))
       return
     }
 
@@ -143,7 +145,7 @@ export default function MyPage() {
       .neq('user_id', userinfo.user_id)
 
     if (error) {
-      alert('닉네임 체크 실패: ' + error.message)
+      alert(t('myPage.nicknameCheckFail') + error.message)
       return
     }
 
@@ -152,7 +154,7 @@ export default function MyPage() {
     setNicknameChecked(true)
 
     if (!isAvailable) {
-      alert('이미 사용중인 닉네임입니다.')
+      alert(t('myPage.nicknameTaken'))
     }
   }
 
@@ -161,13 +163,13 @@ export default function MyPage() {
 
     // 필수 필드 검증
     if (editForm.username.trim() === '' || editForm.nickname.trim() === '') {
-      alert('이름과 닉네임을 입력해주세요.')
+      alert(t('myPage.enterNameAndNickname'))
       return
     }
 
     // 닉네임 변경 시 중복 체크 확인
     if (editForm.nickname !== userinfo.nickname && (!nicknameChecked || !nicknameAvailable)) {
-      alert('닉네임 중복 체크를 해주세요.')
+      alert(t('myPage.checkNicknameDuplicate'))
       return
     }
 
@@ -182,10 +184,10 @@ export default function MyPage() {
       .eq('user_id', userinfo.user_id)
 
     if (error) {
-      alert('프로필 업데이트 실패: ' + error.message)
+      alert(t('myPage.profileUpdateFail') + error.message)
     } else {
       await login!() // userinfo 새로고침
-      alert('프로필이 업데이트되었습니다.')
+      alert(t('myPage.profileUpdated'))
       setIsEditing(false)
     }
   }
@@ -219,22 +221,22 @@ export default function MyPage() {
       {/* 프로필 섹션 */}
       <section className="mb-8">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold">마이페이지</h1>
+          <h1 className="text-2xl font-bold">{t('myPage.title')}</h1>
           {!isEditing && (
             <button
               onClick={() => setIsEditing(true)}
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             >
-              수정
+              {t('myPage.edit')}
             </button>
           )}
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold mb-2">프로필 정보</h2>
+          <h2 className="text-xl font-semibold mb-2">{t('myPage.profileInfo')}</h2>
           {isEditing ? (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">이름</label>
+                <label className="block text-sm font-medium mb-1">{t('myPage.name')}</label>
                 <input
                   type="text"
                   value={editForm.username}
@@ -243,7 +245,7 @@ export default function MyPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">닉네임</label>
+                <label className="block text-sm font-medium mb-1">{t('myPage.nickname')}</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -262,17 +264,17 @@ export default function MyPage() {
                     disabled={editForm.nickname === userinfo.nickname || editForm.nickname.trim() === ''}
                     className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
                   >
-                    중복체크
+                    {t('myPage.checkDuplicate')}
                   </button>
                 </div>
                 {nicknameChecked && (
                   <p className={`text-sm mt-1 ${nicknameAvailable ? 'text-green-600' : 'text-red-600'}`}>
-                    {nicknameAvailable ? '사용 가능한 닉네임입니다.' : '이미 사용중인 닉네임입니다.'}
+                    {nicknameAvailable ? t('myPage.nicknameAvailable') : t('myPage.nicknameTaken')}
                   </p>
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">휴대폰</label>
+                <label className="block text-sm font-medium mb-1">{t('myPage.phone')}</label>
                 <input
                   type="text"
                   value={editForm.phone}
@@ -281,7 +283,7 @@ export default function MyPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">생년월일</label>
+                <label className="block text-sm font-medium mb-1">{t('myPage.birth')}</label>
                 <input
                   type="date"
                   value={editForm.birth}
@@ -299,23 +301,23 @@ export default function MyPage() {
                   }
                   className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400"
                 >
-                  저장
+                  {t('myPage.save')}
                 </button>
                 <button
                   onClick={handleCancelEdit}
                   className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
                 >
-                  취소
+                  {t('myPage.cancel')}
                 </button>
               </div>
             </div>
           ) : (
             <div className="space-y-2">
-              <p><strong>이름:</strong> {userinfo.username}</p>
-              <p><strong>이메일:</strong> {userinfo.email}</p>
-              <p><strong>닉네임:</strong> {userinfo.nickname}</p>
-              {userinfo.phone && <p><strong>휴대폰:</strong> {userinfo.phone}</p>}
-              {userinfo.birth && <p><strong>생년월일:</strong> {userinfo.birth}</p>}
+              <p><strong>{t('myPage.nameLabel')}</strong> {userinfo.username}</p>
+              <p><strong>{t('myPage.emailLabel')}</strong> {userinfo.email}</p>
+              <p><strong>{t('myPage.nicknameLabel')}</strong> {userinfo.nickname}</p>
+              {userinfo.phone && <p><strong>{t('myPage.phoneLabel')}</strong> {userinfo.phone}</p>}
+              {userinfo.birth && <p><strong>{t('myPage.birthLabel')}</strong> {userinfo.birth}</p>}
             </div>
           )}
         </div>
@@ -332,7 +334,7 @@ export default function MyPage() {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            내가 만든 작품 ({userPosts.length})
+            {t('myPage.myWorks')} ({userPosts.length})
           </button>
           <button
             onClick={() => setActiveTab('likes')}
@@ -342,7 +344,7 @@ export default function MyPage() {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            좋아요한 작품 ({likedPosts.length})
+            {t('myPage.likedWorks')} ({likedPosts.length})
           </button>
         </div>
       </section>
@@ -351,9 +353,9 @@ export default function MyPage() {
       <section>
         {activeTab === 'posts' ? (
           <div>
-            <h2 className="text-xl font-semibold mb-4">내가 만든 작품</h2>
+            <h2 className="text-xl font-semibold mb-4">{t('myPage.myWorks')}</h2>
             {userPosts.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">아직 만든 작품이 없습니다.</p>
+              <p className="text-gray-500 text-center py-8">{t('myPage.noWorks')}</p>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {userPosts.map((post) => (
@@ -364,7 +366,7 @@ export default function MyPage() {
                   >
                     <img
                       src={post.body}
-                      alt="작품"
+                      alt={t('myPage.workAlt')}
                       className="w-full aspect-square object-cover rounded-lg shadow"
                     />
                     <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
@@ -381,9 +383,9 @@ export default function MyPage() {
           </div>
         ) : (
           <div>
-            <h2 className="text-xl font-semibold mb-4">좋아요한 작품</h2>
+            <h2 className="text-xl font-semibold mb-4">{t('myPage.likedWorks')}</h2>
             {likedPosts.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">아직 좋아요한 작품이 없습니다.</p>
+              <p className="text-gray-500 text-center py-8">{t('myPage.noLikedWorks')}</p>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {likedPosts.map((post) => (
@@ -394,7 +396,7 @@ export default function MyPage() {
                   >
                     <img
                       src={post.body}
-                      alt="좋아요한 작품"
+                      alt={t('myPage.likedWorkAlt')}
                       className="w-full aspect-square object-cover rounded-lg shadow"
                     />
                     <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded flex items-center gap-1">

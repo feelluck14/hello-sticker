@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthContext'
+import { useI18n } from '@/components/I18nContext'
 
 export default function AuthPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
@@ -20,6 +21,7 @@ export default function AuthPage() {
   const [nicknameChecked, setNicknameChecked] = useState(false)
   const [nicknameAvailable, setNicknameAvailable] = useState(false)
   const router = useRouter()
+  const { t } = useI18n()
   // 로그인 상태 확인
   useEffect(() => {
     if (userinfo) {
@@ -135,17 +137,17 @@ export default function AuthPage() {
   color:'black'
 }}>
   <h2 style={{ textAlign: 'center', marginBottom: 24 }}>
-    {mode === 'login' ? '로그인' : '회원가입'}
+    {mode === 'login' ? t('auth.login') : t('auth.signup')}
   </h2>
 
   <form onSubmit={mode === 'login' ? handleLogin : handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
     <label>
-      이메일
+      {t('auth.email')}
       <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
     </label>
 
     <label>
-      비밀번호
+      {t('auth.password')}
       <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
     </label>
     {mode === 'login' && (
@@ -155,13 +157,13 @@ export default function AuthPage() {
           checked={rememberMe}
           onChange={(e) => setRememberMe(e.target.checked)}
           />
-          항시 로그인 유지
+          {t('auth.rememberMe')}
       </label>
     )}
     {mode === 'signup' && (
       <>
         <label>
-          닉네임
+          {t('auth.nickname')}
           <div style={{ display: 'flex', gap: '8px' }}>
             <input value={nickname} onChange={(e) => { setNickname(e.target.value); setNicknameChecked(false); setNicknameAvailable(false); }} required />
             <button type="button" onClick={handleCheckNickname} style={{
@@ -172,32 +174,32 @@ export default function AuthPage() {
               borderRadius: '4px',
               cursor: 'pointer'
             }}>
-              중복체크
+              {t('auth.checkDuplicate')}
             </button>
           </div>
         </label>
 
         <label>
-          이름
+          {t('auth.name')}
           <input value={username} onChange={(e) => setName(e.target.value)} />
         </label>
 
         <label>
-          휴대폰번호
+          {t('auth.phone')}
           <input value={phone} onChange={(e) => setPhone(e.target.value)} />
         </label>
 
         <label>
-          성별
+          {t('auth.gender')}
           <select value={gender} onChange={(e) => setGender(e.target.value)}>
-            <option value="">선택</option>
-            <option value="male">남성</option>
-            <option value="female">여성</option>
+            <option value="">{t('auth.select')}</option>
+            <option value="male">{t('auth.male')}</option>
+            <option value="female">{t('auth.female')}</option>
           </select>
         </label>
 
         <label>
-          생년월일
+          {t('auth.birth')}
           <input type="date" value={birth} onChange={(e) => setBirthdate(e.target.value)} />
         </label>
       </>
@@ -211,7 +213,7 @@ export default function AuthPage() {
       borderRadius: '4px',
       cursor: 'pointer'
     }}>
-      {mode === 'login' ? '로그인' : '회원가입'}
+      {mode === 'login' ? t('auth.login') : t('auth.signup')}
     </button>
   </form>
 
@@ -220,16 +222,16 @@ export default function AuthPage() {
   <div style={{ marginTop: 20, textAlign: 'center' }}>
     {mode === 'login' ? (
       <p>
-        계정이 없으신가요?{' '}
+        {t('auth.noAccount')}{' '}
         <button onClick={() => setMode('signup')} style={{ color: '#4f46e5', background: 'none', border: 'none', cursor: 'pointer' }}>
-          회원가입
+          {t('auth.signupLink')}
         </button>
       </p>
     ) : (
       <p>
-        이미 계정이 있으신가요?{' '}
+        {t('auth.hasAccount')}{' '}
         <button onClick={() => setMode('login')} style={{ color: '#4f46e5', background: 'none', border: 'none', cursor: 'pointer' }}>
-          로그인
+          {t('auth.loginLink')}
         </button>
         
       </p>
@@ -277,7 +279,7 @@ export default function AuthPage() {
         <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
         <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
       </svg>
-      Google로 계속하기
+      {t('auth.googleLogin')}
     </button>
   </div>
 </div>

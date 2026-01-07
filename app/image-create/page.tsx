@@ -7,6 +7,7 @@ import { useAuth } from '@/components/AuthContext'
 import ImageUploadModal from '@/components/ImageUploadModal'
 import ResultModal from '@/components/ResultModal'
 import { getAnonymousId, handleupload } from '@/lib/imageHelpers'
+import { useI18n } from '@/components/I18nContext'
 
 export default function ImageCreatePage() {
   const { userinfo, loading } = useAuth()
@@ -27,6 +28,7 @@ export default function ImageCreatePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const contestId = searchParams.get('board_id')
+  const { t } = useI18n()
  useEffect(() => {
     const fetchContest = async () => {
       if (!contestId) return
@@ -96,7 +98,7 @@ export default function ImageCreatePage() {
       console.log(user.id)
       if (error) {
         console.error(error)
-        return { success: false, message: '조회 실패' }
+        return { success: false, message: t('imageCreate.fetchFail') }
       }
 
       const lastDate = data.lastmake_at ? data.lastmake_at.split('T')[0] : null
@@ -107,7 +109,7 @@ export default function ImageCreatePage() {
         if (makecount < maxcount) {
           makecount += 1
         } else {
-          return { success: false, message: '오늘 횟수 초과' }
+          return { success: false, message: t('imageCreate.limitExceeded') }
         }
       } else {
         makecount = 1
@@ -118,7 +120,7 @@ export default function ImageCreatePage() {
         lastmake_at: new Date().toISOString()
       }).eq('id', user.id)
 
-      return { success: true, message: '만들기 진행' }
+      return { success: true, message: t('imageCreate.making') }
 
     } else {
       // 비로그인 유저
@@ -131,7 +133,7 @@ export default function ImageCreatePage() {
 
       if (error && error.code !== 'PGRST116') {
         console.error(error)
-        return { success: false, message: '조회 실패' }
+        return { success: false, message: t('imageCreate.fetchFail') }
       }
 
       let makecount = data?.makecount || 0
@@ -141,7 +143,7 @@ export default function ImageCreatePage() {
         if (makecount < 1) {
           makecount += 1
         } else {
-          return { success: false, message: '오늘 횟수 초과 (비회원)' }
+          return { success: false, message: t('imageCreate.limitExceededAnon') }
         }
       } else {
         makecount = 1
@@ -153,7 +155,7 @@ export default function ImageCreatePage() {
         lastmake_at: new Date().toISOString()
       })
 
-      return { success: true, message: '만들기 진행' }
+      return { success: true, message: t('imageCreate.making') }
     }
   }
 
@@ -181,7 +183,7 @@ export default function ImageCreatePage() {
 
   const handleGenerate = async () => {
     if (!imageFile || !prompt) {
-      setMessage('❌ 이미지와 프롬프트를 모두 입력해주세요.')
+      setMessage(`❌ ${t('imageCreate.inputRequired')}`)
       return
     } 
     
@@ -218,10 +220,10 @@ export default function ImageCreatePage() {
         },
       ])
       if (error) {
-        setMessage(`❌ 저장 실패: ${error.message}`)
+        setMessage(`❌ ${t('imageCreate.saveFail')}: ${error.message}`)
         return
       }
-      setMessage('✅ 이미지 생성 및 저장 완료!')
+      setMessage(`✅ ${t('imageCreate.saveSuccess')}`)
     } else {
       const count_check= await handleMake(userinfo, false)
       if(!count_check.success){
@@ -252,10 +254,10 @@ export default function ImageCreatePage() {
         },
       ])
       if (error) {
-        setMessage(`❌ 저장 실패: ${error.message}`)
+        setMessage(`❌ ${t('imageCreate.saveFail')}: ${error.message}`)
         return
       }
-      setMessage('✅ 이미지 생성 완료 (비회원 저장됨)')
+      setMessage(`✅ ${t('imageCreate.saveSuccessAnon')}`)
     }
     
     
@@ -263,17 +265,17 @@ export default function ImageCreatePage() {
 
   const handleUpload = async () => {
     if (!userinfo) {
-    alert('로그인 후 이용해주세요')
+    alert(t('imageCreate.loginRequired'))
     return
   }
 
   if (!resultImage) {
-    setMessage('❌ 결과 이미지가 없습니다.')
+    setMessage(`❌ ${t('imageCreate.noResultImage')}`)
     return
   }
 
   if (!userinfo?.id) {
-    setMessage('❌ 사용자 정보가 없습니다.')
+    setMessage(`❌ ${t('imageCreate.noUserInfo')}`)
     return
   }
 
@@ -288,11 +290,11 @@ export default function ImageCreatePage() {
   ])
 
   if (error) {
-    setMessage(`❌ 이미지 업로드 실패: ${error.message}`)
+    setMessage(`❌ ${t('imageCreate.uploadFail')}: ${error.message}`)
     return
   }
 
-  setMessage('✅ 이미지 게시 완료!')
+  setMessage(`✅ ${t('imageCreate.uploadSuccess')}`)
   router.push('/') // 메인 페이지로 이동
 
  
@@ -309,7 +311,7 @@ export default function ImageCreatePage() {
         {contestData.image && (
           <img
             src={contestData.image}
-            alt="게시글 이미지"
+            alt={t('imageCreate.postImageAlt')}
             style={{ width: '60%', borderRadius: '8px', marginBottom: '16px' }}
           />
         )}
@@ -317,7 +319,7 @@ export default function ImageCreatePage() {
           {contestData.body}
         </p>
         <p style={{ fontSize: '12px', color: '#999', marginTop: '12px' }}>
-          작성일: {new Date(contestData.created_at).toLocaleString()}
+          {t('imageCreate.createdAt')} {new Date(contestData.created_at).toLocaleString()}
         </p>
       </div>
 
@@ -325,7 +327,7 @@ export default function ImageCreatePage() {
       <div style={{ display: 'flex', flexDirection: 'row', gap: 16, alignItems: 'center',marginTop: '20px' }}>
         {/* 캐릭터 선택 */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <label style={{ marginBottom: '8px' }}>캐릭터</label>
+          <label style={{ marginBottom: '8px' }}>{t('imageCreate.character')}</label>
           <button onClick={openModal} style={{ padding: 0, border: 'none', background: 'none' }}>
             <div
               style={{
@@ -343,11 +345,11 @@ export default function ImageCreatePage() {
               {imagePreview ? (
                 <img
                   src={imagePreview}
-                  alt="선택된 캐릭터"
+                  alt={t('imageCreate.selectedCharacterAlt')}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               ) : (
-                <span style={{ fontSize: '32px', color: '#666' }}>＋</span>
+                <span style={{ fontSize: '32px', color: '#666' }}>{t('imageCreate.plus')}</span>
               )}
             </div>
           </button>
@@ -367,7 +369,7 @@ export default function ImageCreatePage() {
         </div>
         {/* 프롬프트 입력 */}
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-          <label style={{ marginBottom: '8px' }}>프롬프트 입력</label>
+          <label style={{ marginBottom: '8px' }}>{t('imageCreate.promptLabel')}</label>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -399,7 +401,7 @@ export default function ImageCreatePage() {
               whiteSpace: 'nowrap',
             }}
           >
-            만들기
+            {t('imageCreate.generate')}
           </button>
         </div>
       </div>

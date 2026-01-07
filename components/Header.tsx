@@ -4,11 +4,14 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthContext'
 import Image from 'next/image'
+import { useI18n } from './I18nContext';
+import LanguageSwitcher from './LanguageSwitcher';
 
 
 export default function Header() {
   const { userinfo,loading,logout  } = useAuth()
   const router = useRouter()
+  const { t } = useI18n()
 
   if (loading) {
     return (
@@ -22,21 +25,24 @@ export default function Header() {
   return (
     <header className="w-full flex justify-between items-center p-4 border-b">
       <Link href="/" className="text-lg font-bold text-gray-800 hover:text-blue-600 transition">
-        이모티콘 만들기
+        {t('nav.title')}
       </Link>
 
-      {userinfo ? (
-        <div className="flex gap-4">
-          <Link href="/my-page">마이페이지</Link>
-          <button onClick={async () => {
-            if (logout) {
-              await logout()
-            }
-          }}>로그아웃</button>
-        </div>
-      ) : (
-        <Link href="/auth">로그인</Link>
-      )}
+      <div className="flex items-center gap-4">
+        <LanguageSwitcher />
+        {userinfo ? (
+          <div className="flex gap-4">
+            <Link href="/my-page">{t('nav.myPage')}</Link>
+            <button onClick={async () => {
+              if (logout) {
+                await logout()
+              }
+            }}>{t('nav.logout')}</button>
+          </div>
+        ) : (
+          <Link href="/auth">{t('nav.login')}</Link>
+        )}
+      </div>
     </header>
   )
 }

@@ -69,3 +69,65 @@ export const handleupload = async (
     return '';
   }
 };
+
+// WhatsApp 스티커용 이미지 변환 함수 (blob 반환)
+export async function convertToStickerBlob(imageUrl: string): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(null);
+        return;
+      }
+
+      // WhatsApp 스티커 크기: 256x256
+      canvas.width = 256;
+      canvas.height = 256;
+
+      // 이미지 중앙에 맞춰서 리사이즈
+      const aspectRatio = img.width / img.height;
+      let drawWidth, drawHeight, offsetX, offsetY;
+
+      if (aspectRatio > 1) {
+        // 가로가 긴 경우
+        drawWidth = 256;
+        drawHeight = 256 / aspectRatio;
+        offsetX = 0;
+        offsetY = (256 - drawHeight) / 2;
+      } else {
+        // 세로가 긴 경우
+        drawHeight = 256;
+        drawWidth = 256 * aspectRatio;
+        offsetX = (256 - drawWidth) / 2;
+        offsetY = 0;
+      }
+
+      // 배경을 투명하게
+      ctx.clearRect(0, 0, 256, 256);
+
+      // 이미지 그리기
+      ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+
+      // WebP로 변환
+      canvas.toBlob((blob) => {
+        resolve(blob);
+      }, 'image/webp', 0.6);
+    };
+    img.onerror = () => resolve(null);
+    img.src = imageUrl;
+  });
+}
+
+// 모바일 기기 감지
+export function isMobile(): boolean {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+// WhatsApp 공유 URL 생성 (이미지 공유용)
+export function generateWhatsAppShareUrl(imageUrl: string): string {
+  const text = `Check out this sticker: ${imageUrl}`;
+  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+}

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthContext'
+import { useI18n } from '@/components/I18nContext'
 
 export default function ContestCreatePage() {
   const [title, setTitle] = useState('')
@@ -11,10 +12,11 @@ export default function ContestCreatePage() {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const { userinfo, loading } = useAuth()
   const router = useRouter()
+  const { t } = useI18n()
   useEffect(() => {
     if (loading) return; // 아직 로딩 중이면 실행하지 않음
     if (!userinfo) {
-      alert('로그인이 필요합니다.');
+      alert(t('contestCreate.loginRequired'));
       router.push('/auth');
     }
   }, [loading, userinfo]);
@@ -22,7 +24,7 @@ export default function ContestCreatePage() {
   const handleSubmit = async () => {
     
     if (!userinfo) {
-      alert('사용자 정보가 없습니다. 새로고침 후 다시 시도해주세요.')
+      alert(t('contestCreate.noUserInfo'))
       return
     }
     const user_id = userinfo.user_id // contest_posts에 들어갈 int형 ID
@@ -40,7 +42,7 @@ export default function ContestCreatePage() {
 
       if (uploadError) {
         console.error(uploadError)
-        alert('이미지 업로드 실패')
+        alert(t('contestCreate.uploadFail'))
         return
       }
       const { data: publicUrlData } = supabase.storage
@@ -60,7 +62,7 @@ export default function ContestCreatePage() {
 
     if (insertError) {
       console.error(insertError)
-      alert('게시글 등록 실패')
+      alert(t('contestCreate.postFail'))
     } else {
       router.push('/')
     }
@@ -68,18 +70,18 @@ export default function ContestCreatePage() {
 
   return (
     <div className="max-w-xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">새로운 대회 만들기</h1>
+      <h1 className="text-2xl font-bold mb-4">{t('contestCreate.title')}</h1>
 
-      <label className="block mb-2 font-semibold">제목</label>
+      <label className="block mb-2 font-semibold">{t('contestCreate.titleLabel')}</label>
       <input
         type="text"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         className="w-full border px-3 py-2 mb-4 rounded"
-        placeholder="제목을 입력하세요"
+        placeholder={t('contestCreate.titlePlaceholder')}
       />
 
-      <label className="block mb-2 font-semibold">이미지 (선택)</label>
+      <label className="block mb-2 font-semibold">{t('contestCreate.imageLabel')}</label>
       <input
         type="file"
         accept="image/*"
@@ -87,20 +89,20 @@ export default function ContestCreatePage() {
         className="mb-4"
       />
 
-      <label className="block mb-2 font-semibold">본문</label>
+      <label className="block mb-2 font-semibold">{t('contestCreate.bodyLabel')}</label>
       <textarea
         value={body}
         onChange={(e) => setBody(e.target.value)}
         className="w-full border px-3 py-2 mb-6 rounded"
         rows={6}
-        placeholder="내용을 입력하세요"
+        placeholder={t('contestCreate.bodyPlaceholder')}
       />
 
       <button
         onClick={handleSubmit}
         className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
       >
-        등록하기
+        {t('contestCreate.submit')}
       </button>
     </div>
   )

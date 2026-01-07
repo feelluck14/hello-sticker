@@ -5,6 +5,9 @@ import { cache, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useParams,useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthContext'
+import { useI18n } from '@/components/I18nContext'
+import { isMobile, generateWhatsAppShareUrl } from '@/lib/imageHelpers'
+import QRCode from 'qrcode'
 
 type ImagePost = {
   id: number
@@ -40,7 +43,10 @@ export default function ImageDetailPage() {
   const [authorName, setAuthorName] = useState('')
   const [replyTarget, setReplyTarget] = useState<number | null>(null)
   const [replyText, setReplyText] = useState('')
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
+  const [showModal, setShowModal] = useState(false)
   const router = useRouter()
+  const { t } = useI18n()
   // 댓글 데이터 가져오는 함수
   const fetchReplies = async () => {
     const { data: replyData } = await supabase
@@ -110,6 +116,25 @@ export default function ImageDetailPage() {
     }
     fetchData()
   }, [id, userinfo, loading])
+
+  const handleExportToWhatsApp = async (imageUrl: string) => {
+    try {
+      const shareUrl = generateWhatsAppShareUrl(imageUrl);
+
+      if (isMobile()) {
+        // 모바일: WhatsApp으로 직접 공유
+        window.location.href = `whatsapp://send?text=${encodeURIComponent(`Check out this image: ${imageUrl}`)}`;
+      } else {
+        // 데스크톱: QR 코드 생성 및 모달 표시
+        const qrCodeDataUrl = await QRCode.toDataURL(shareUrl);
+        setQrCodeUrl(qrCodeDataUrl);
+        setShowModal(true);
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('내보내기에 실패했습니다.');
+    }
+  };
 
   // 좋아요 토글
   const toggleLike = async () => {
@@ -215,7 +240,7 @@ export default function ImageDetailPage() {
                   setReplyTarget(replyTarget === r.id ? null : r.id)
                 }
               >
-                {replyTarget === r.id ? "닫기" : "답글 달기"}
+                {replyTarget === r.id ? t('imageDetail.close') : t('imageDetail.reply')}
               </button>
             )}
 
@@ -226,7 +251,7 @@ export default function ImageDetailPage() {
                     type="text"
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
-                    placeholder="답글을 입력하세요"
+                    placeholder={t('imageDetail.replyPlaceholder')}
                     className="flex-1 border rounded px-2 py-1"
                   />
                   <button
@@ -236,7 +261,7 @@ export default function ImageDetailPage() {
                     }}
                     className="bg-green-500 text-white px-3 py-1 rounded"
                   >
-                    답글 등록
+                    {t('imageDetail.submitReply')}
                   </button>
                 </div>
               )}
@@ -262,11 +287,12 @@ export default function ImageDetailPage() {
     <main className="p-6">
       <img
         src={image.body}
-        alt="이모티콘"
+        alt={t('imageDetail.emojiAlt')}
         className="w-64 aspect-square object-cover rounded shadow mb-4"
       />
-    <span className="text-gray-600">작성자 ID: {image.users_info?.nickname}</span>
-    <button
+    <span className="text-gray-600">{t('imageDetail.author')} {image.users_info?.nickname}</span>
+    <div className="flex gap-2 mt-4">
+      <button
         onClick={toggleLike}
         className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition
           ${liked ? 'bg-red-500 text-white border-red-600 hover:bg-red-600' 
@@ -279,36 +305,57 @@ export default function ImageDetailPage() {
         )}
         <span>{likes}</span>
       </button>
+      <button
+        onClick={() => handleExportToWhatsApp(image.body)}
+        className="px-3 py-2 bg-green-500 text-white text-sm rounded hover:bg-green-600"
+      >
+        WhatsApp Sticker
+      </button>
+    </div>
 
 
 
       {/* 댓글 입력 폼 */}
       <section className="mb-6">
-        <h2 className="text-lg font-semibold mb-2">댓글 작성</h2>
+        <h2 className="text-lg font-semibold mb-2">{t('imageDetail.commentSection')}</h2>
         <div className="flex gap-2">
           <input
             type="text"
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
-            placeholder="댓글을 입력하세요"
+            placeholder={t('imageDetail.commentPlaceholder')}
             className="flex-1 border rounded px-2 py-1"
           />
           <button
             onClick={handleAddComment}
             className="bg-blue-500 text-white px-3 py-1 rounded"
           >
-            등록
+            {t('imageDetail.submit')}
           </button>
         </div>
       </section>
 
       {/* 댓글 목록 */}
       <section>
-        <h2 className="text-lg font-semibold mb-2">댓글 목록</h2>
+        <h3 className="text-lg font-semibold mb-4">{t('imageDetail.commentList')}</h3>
         {renderReplies()}
       </section>
 
-      
+      {/* QR Code Modal */}
+      {showModal && qrCodeUrl && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-sm w-full mx-4">
+            <h2 className="text-lg font-bold mb-4">Scan QR Code to Share on WhatsApp</h2>
+            <img src={qrCodeUrl} alt="QR Code" className="w-full mb-4" />
+            <button
+              onClick={() => setShowModal(false)}
+              className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

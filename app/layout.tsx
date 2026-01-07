@@ -5,6 +5,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from '@/components/AuthContext'
 import ClientLayout from "./ClientLayout"; // 클라이언트 전용 컴포넌트
+import { I18nProvider } from '@/components/I18nContext'
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -18,7 +19,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <AuthProvider>
+        <I18nProvider>
+          <AuthProvider>
 
         <div className="flex justify-center min-h-screen">
           {/* 스마트폰 화면 비율 박스 - 전체화면처럼 보이도록 수정 */}
@@ -27,7 +29,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <ClientLayout>{children}</ClientLayout>
           </div>
         </div>
-        </AuthProvider></body>
+        </AuthProvider>
+        </I18nProvider></body>
     </html>
   );
 }

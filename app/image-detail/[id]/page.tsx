@@ -6,8 +6,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { useParams,useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthContext'
 import { useI18n } from '@/components/I18nContext'
-import { isMobile, generateWhatsAppShareUrl } from '@/lib/imageHelpers'
-import QRCode from 'qrcode'
+import { convertToStickerBlob, isMobile } from '@/lib/imageHelpers'
 
 type ImagePost = {
   id: number
@@ -119,17 +118,23 @@ export default function ImageDetailPage() {
 
   const handleExportToWhatsApp = async (imageUrl: string) => {
     try {
-      const shareUrl = generateWhatsAppShareUrl(imageUrl);
-
-      if (isMobile()) {
-        // 모바일: WhatsApp으로 직접 공유
-        window.location.href = `whatsapp://send?text=${encodeURIComponent(`Check out this image: ${imageUrl}`)}`;
-      } else {
-        // 데스크톱: QR 코드 생성 및 모달 표시
-        const qrCodeDataUrl = await QRCode.toDataURL(shareUrl);
-        setQrCodeUrl(qrCodeDataUrl);
-        setShowModal(true);
+      const stickerBlob = await convertToStickerBlob(imageUrl);
+      if (!stickerBlob) {
+        alert('스티커 변환에 실패했습니다.');
+        return;
       }
+
+      // 다운로드 링크 생성
+      const stickerUrl = URL.createObjectURL(stickerBlob);
+      const link = document.createElement('a');
+      link.href = stickerUrl;
+      link.download = 'sticker.webp';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(stickerUrl);
+
+      alert('스티커가 다운로드되었습니다. Sticker Maker 앱에 업로드하세요.');
     } catch (error) {
       console.error('Export failed:', error);
       alert('내보내기에 실패했습니다.');
@@ -340,22 +345,6 @@ export default function ImageDetailPage() {
         <h3 className="text-lg font-semibold mb-4">{t('imageDetail.commentList')}</h3>
         {renderReplies()}
       </section>
-
-      {/* QR Code Modal */}
-      {showModal && qrCodeUrl && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg max-w-sm w-full mx-4">
-            <h2 className="text-lg font-bold mb-4">Scan QR Code to Share on WhatsApp</h2>
-            <img src={qrCodeUrl} alt="QR Code" className="w-full mb-4" />
-            <button
-              onClick={() => setShowModal(false)}
-              className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
     </main>
   )
 }
